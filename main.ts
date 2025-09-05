@@ -11,8 +11,8 @@ await configLogger({ enable: false });
 //} = await import('node:crypto');
 import { Md5 } from "https://deno.land/std@0.95.0/hash/md5.ts";
 
-const processRequest = async (myurls: array,firststr: string): Promise<any> => {
-    let first=JSON.parse(firststr)
+const processRequest = async (myurls: array,fixedstr: string,laststr: string): Promise<any> => {
+    let fixed=JSON.parse(fixedstr)
     //console.log(JSON.stringify(first))
     let startTime=new Date().getTime()
     let connurl=new URL(Deno.env.get("DB_URL"))
@@ -57,10 +57,12 @@ const processRequest = async (myurls: array,firststr: string): Promise<any> => {
     for ( const idx in myurls ) {
         let presql=""
         let firstTime=startTime
+        let lastTime=startTime
         let tmpsha=null
         try {
-            if(Object.hasOwn(first,myurls[idx])) {
-                firstTime=parseInt(first[myurls[idx]])*1000
+            if(Object.hasOwn(fixed,myurls[idx])) {
+                firstTime=parseInt(fixed[myurls[idx]])*1000
+                lastTime=parseInt(fixed[myurls[idx]])*1000
             }
         } catch(err) {
             console.log("unreadable ts first for "+ myurls[idx])
@@ -83,9 +85,9 @@ const processRequest = async (myurls: array,firststr: string): Promise<any> => {
         sql=presql
         sql=sql+"INSERT INTO "
         sql=sql+" urlseen (sha,firstseen,lastseen) "
-        sql=sql+"VALUES ('"+tmpsha+"',"+parseInt(firstTime/1000)+","+parseInt(startTime/1000)+") "
+        sql=sql+"VALUES ('"+tmpsha+"',"+parseInt(firstTime/1000)+","+parseInt(lastTime/1000)+") "
         sql=sql+"ON DUPLICATE KEY "
-        sql=sql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(startTime/1000)+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(firstTime/1000)+"); \n"
+        sql=sql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(lastTime/1000)+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(firstTime/1000)+"); \n"
         
         //console.log(sql)
         let myres=await conn.query(sql)
@@ -136,11 +138,11 @@ Deno.serve( async (req: Request) =>  {
         }
         if(Object.hasOwn(json,"urls")) {
             //return await processRequest(["http://test.lan"])
-            let myfirst={}
-            if(Object.hasOwn(json,"first")) {
-                myfirst=json.first
+            let myfixed={}
+            if(Object.hasOwn(json,"ts")) {
+                myfixed=json.ts
             }
-            let mystr=JSON.stringify(myfirst)
+            let mystr=JSON.stringify(myfixed)
             return await processRequest(json.urls,mystr)
         } else {
             console.log("err+no+urls")
@@ -169,5 +171,5 @@ Deno.serve( async (req: Request) =>  {
 //);
 // CURL sample current time:
 // curl -H "API-KEY: yourAPIkey" https://your-deno-123.deno.dev/ -H "Content-Type: application/json" -X POST  --data '{"urls":["http://test.lan"] }'  
-// CURL sample with firstseen set ( seconds )
-// curl -H "API-KEY: yourAPIkey" https://your-deno-123.deno.dev/ -H "Content-Type: application/json" -X POST  --data '{"urls":["http://test.lan"],"first": { "http://test.lan": 123123123 }}'  
+// CURL sample with seen set ( seconds )
+// curl -H "API-KEY: yourAPIkey" https://your-deno-123.deno.dev/ -H "Content-Type: application/json" -X POST  --data '{"urls":["http://test.lan"],"ts": { "http://test.lan": 123123123 }}'  
