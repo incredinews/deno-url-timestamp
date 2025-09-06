@@ -54,6 +54,8 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
     //console.log(JSON.stringify(dbconf))
     //console.log(Deno.env.get("DB_URL"))
     const conn = await new Client().connect(dbconf);
+    let shasend=[]
+    let urlsend=[]
     for ( const idx in myurls ) {
         let presql=""
         let firstTime=startTime
@@ -71,7 +73,8 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
 
         if(myurls[idx].includes("://")) {
             tmpsha=sha256(myurls[idx], "utf8", "hex")           
-            createsql[tmpsha]=await conn.query("INSERT IGNORE INTO urlhash (sha,md5,url) \nVALUES ('"+tmpsha+"','"+md5.update(myurls[idx]).toString()+"','"+myurls[idx]+"'); \n")
+            //createsql[tmpsha]=await conn.query("INSERT IGNORE INTO urlhash (sha,md5,url) \nVALUES ('"+tmpsha+"','"+md5.update(myurls[idx]).toString()+"','"+myurls[idx]+"'); \n")
+            shasend.push([tmpsha,md5.update(myurls[idx]).toString(),myurls[idx]])
             //presql="INSERT IGNORE INTO urlhash (sha,md5,url) VALUES ('"+tmpsha+"','"+md5.update(myurls[idx]).toString()+"','"+myurls[idx]+"') ; \n"
         } else {
             //got a hash
@@ -82,18 +85,41 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
                 urls_invalid.push(myurls[idx])
             }
         }
-        sql=presql
-        sql=sql+"INSERT INTO "
-        sql=sql+" urlseen (sha,firstseen,lastseen) "
-        sql=sql+"VALUES ('"+tmpsha+"',"+parseInt(firstTime/1000)+","+parseInt(lastTime/1000)+") "
-        sql=sql+"ON DUPLICATE KEY "
-        sql=sql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(lastTime/1000)+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(firstTime/1000)+"); \n"
-        
+        //sql=presql
+        //sql=sql+"INSERT INTO "
+        //sql=sql+" urlseen (sha,firstseen,lastseen) "
+        //sql=sql+"VALUES ('"+tmpsha+"',"+parseInt(firstTime/1000)+","+parseInt(lastTime/1000)+") "
+        //sql=sql+"ON DUPLICATE KEY "
+        //sql=sql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(lastTime/1000)+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(firstTime/1000)+"); \n"
+        urlsend.push([tmpsha,parseInt(lastTime/1000),parseInt(firstTime/1000)])
         //console.log(sql)
-        let myres=await conn.query(sql)
-        sqlresult[tmpsha]=myres.affectedRows;
+        ////let myres=await conn.query(sql)
+        ////sqlresult[tmpsha]=myres.affectedRows;
     }
-
+    if(urlsend.length>0) {
+        const counter = await conn.transaction(async (sqlcli) => {
+        for (const elem of urlsend) {
+        let fsql=""
+        fsql=fsql+"INSERT INTO "
+        fsql=fsql+" urlseen (sha,firstseen,lastseen) "
+        fsql=fsql+"VALUES ('"+elem[0]+"',"+parseInt(elem[1])+","+parseInt(elem[2])+") "
+        fsql=fsql+"ON DUPLICATE KEY "
+        fsql=fsql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(elem[2])+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(elem[1])+"); \n"
+            await sqlcli.execute('fsql');
+        }
+          return await sqlcli.query('SELECT COUNT(*) FROM urlseen;');
+        });
+    }
+    if(shasend.length>0) {
+        const counter = await conn.transaction(async (sqlcli) => {
+        for (const elem of shasend) {
+        let fsql="INSERT IGNORE INTO urlhash (sha,md5,url) \nVALUES ('"+elem[0]+"','"+elem[1]+"','"+elem[2]+"'); \n"
+            await sqlcli.execute('fsql');
+        }
+          return await sqlcli.query('SELECT COUNT(*) FROM urlseen;');
+        });
+    }
+    
     //const results = await conn.query("SHOW DATABASES");
     //const results = await conn.query("SHOW TABLES");
     //console.log(createsql)
