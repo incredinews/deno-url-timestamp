@@ -97,7 +97,7 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
         ////sqlresult[tmpsha]=myres.affectedRows;
     }
     if(urlsend.length>0) {
-        const counter = await conn.transaction(async (sqlcli) => {
+        sqlresult["urls"] = await conn.transaction(async (sqlcli) => {
         for (const elem of urlsend) {
         let fsql=""
         fsql=fsql+"INSERT INTO "
@@ -111,7 +111,7 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
         });
     }
     if(shasend.length>0) {
-        const counter = await conn.transaction(async (sqlcli) => {
+        sqlresult["sha"] = await conn.transaction(async (sqlcli) => {
         for (const elem of shasend) {
         let fsql="INSERT IGNORE INTO urlhash (sha,md5,url) \nVALUES ('"+elem[0]+"','"+elem[1]+"','"+elem[2]+"'); \n"
             await sqlcli.execute(fsql);
