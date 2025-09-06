@@ -105,7 +105,7 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
         fsql=fsql+"VALUES ('"+elem[0]+"',"+parseInt(elem[1])+","+parseInt(elem[2])+") "
         fsql=fsql+"ON DUPLICATE KEY "
         fsql=fsql+"    UPDATE lastseen = GREATEST( VALUES(lastseen),lastseen , "+parseInt(elem[2])+") , firstseen = LEAST(VALUES(firstseen),firstseen, "+parseInt(elem[1])+"); \n"
-            await sqlcli.execute('fsql');
+            await sqlcli.execute(fsql);
         }
           return await sqlcli.query('SELECT COUNT(*) FROM urlseen;');
         });
@@ -114,9 +114,9 @@ const processRequest = async (myurls: array,fixedstr: string,laststr: string): P
         const counter = await conn.transaction(async (sqlcli) => {
         for (const elem of shasend) {
         let fsql="INSERT IGNORE INTO urlhash (sha,md5,url) \nVALUES ('"+elem[0]+"','"+elem[1]+"','"+elem[2]+"'); \n"
-            await sqlcli.execute('fsql');
+            await sqlcli.execute(fsql);
         }
-          return await sqlcli.query('SELECT COUNT(*) FROM urlseen;');
+          return await sqlcli.query('SELECT COUNT(*) FROM urlhash;');
         });
     }
     
